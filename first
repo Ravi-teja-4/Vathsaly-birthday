@@ -1,0 +1,235 @@
+import React, { useEffect, useRef } from 'react';
+
+// AnimatedParticle class defines the properties and behavior of each particle
+class AnimatedParticle {
+  /**
+   * @param {number} x - Initial x-coordinate of the particle.
+   * @param {number} y - Initial y-coordinate of the particle.
+   * @param {number} size - Size of the particle (radius for confetti, font size for emojis).
+   * @param {string | null} color - Color of the particle (e.g., '#FFD700') for confetti. Null for emojis.
+   * @param {{x: number, y: number}} velocity - Initial velocity object with x and y components.
+   * @param {string} type - Type of particle: 'confetti' or 'emoji'.
+   * @param {string} [emoji] - The emoji character for 'emoji' type particles (e.g., '❤️', '🌸', '🐻').
+   */
+  constructor(x, y, size, color, velocity, type, emoji = '') {
+    this.x = x;
+    this.y = y;
+    this.size = size;
+    this.color = color;
+    this.velocity = velocity;
+    this.type = type;
+    this.emoji = emoji;
+    this.alpha = 1; // Transparency, starts fully opaque
+    this.rotation = Math.random() * Math.PI * 2; // Random initial rotation (0 to 360 degrees)
+    this.rotationSpeed = Math.random() * 0.1 - 0.05; // Random rotation speed (can be positive or negative)
+  }
+
+  // Updates the particle's position, velocity, transparency, and rotation
+  update() {
+    // Apply gravity
+    this.velocity.y += 0.05;
+
+    // Adjust physics for floating elements (hearts, flowers, teddies)
+    if (this.type === 'emoji') {
+      this.velocity.y -= 0.08; // Counteract gravity slightly to make them float up more or gently fall
+      this.velocity.x += (Math.random() - 0.5) * 0.1; // Gentle horizontal drift
+      this.alpha -= 0.004; // Slower fade for floating elements
+    } else { // Confetti specific fade
+      this.alpha -= 0.008; // Gradually fade out confetti
+    }
+
+    this.x += this.velocity.x; // Update x-position based on horizontal velocity
+    this.y += this.velocity.y; // Update y-position based on vertical velocity
+    this.rotation += this.rotationSpeed; // Update rotation
+  }
+
+  /**
+   * Draws the particle on the canvas.
+   * @param {CanvasRenderingContext2D} ctx - The 2D rendering context of the canvas.
+   */
+  draw(ctx) {
+    ctx.save(); // Save the current canvas state
+    ctx.globalAlpha = this.alpha; // Set global alpha for transparency
+    ctx.translate(this.x, this.y); // Move the canvas origin to the particle's position
+    ctx.rotate(this.rotation); // Rotate the canvas
+
+    if (this.type === 'confetti') {
+      ctx.fillStyle = this.color; // Set fill color for confetti
+      ctx.beginPath(); // Start a new path
+      ctx.arc(0, 0, this.size, 0, Math.PI * 2); // Draw a circle centered at the new origin
+      ctx.fill(); // Fill the circle
+    } else if (this.type === 'emoji') {
+      ctx.font = `${this.size}px 'Inter', sans-serif`; // Set font size and family for emoji
+      ctx.textAlign = 'center'; // Center the text horizontally
+      ctx.textBaseline = 'middle'; // Center the text vertically
+      ctx.fillText(this.emoji, 0, 0); // Draw the emoji
+    }
+    ctx.restore(); // Restore the canvas state to what it was before save()
+  }
+}
+
+// App component is the main functional component for the birthday page
+const App = () => {
+  const canvasRef = useRef(null); // useRef hook to get a direct reference to the canvas DOM element
+  const particles = useRef([]); // useRef to store an array of animated particle objects.
+
+  // useEffect hook for side effects, runs after render
+  useEffect(() => {
+    const canvas = canvasRef.current; // Get the canvas element
+    if (!canvas) return; // If canvas is not available, exit
+
+    const ctx = canvas.getContext('2d'); // Get the 2D rendering context
+    if (!ctx) {
+      console.error('Failed to get 2D context for canvas');
+      return;
+    }
+
+    // Function to resize the canvas to fill the entire window
+    const resizeCanvas = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+
+    resizeCanvas(); // Call once initially to set the canvas size
+    window.addEventListener('resize', resizeCanvas); // Add event listener for window resize to keep canvas responsive
+
+    // Function to generate a random cheerful color for confetti
+    const getRandomConfettiColor = () => {
+      const colors = [
+        '#FFD700', // Gold
+        '#FF69B4', // Hot Pink
+        '#8A2BE2', // Blue Violet
+        '#00CED1', // Dark Turquoise
+        '#FF4500', // Orange Red
+        '#ADFF2F', // Green Yellow
+        '#FFC0CB', // Pink
+        '#9370DB'  // Medium Purple
+      ];
+      return colors[Math.floor(Math.random() * colors.length)]; // Return a random color from the array
+    };
+
+    // Function to launch various particles from the bottom center of the screen
+    const launchParticles = () => {
+      const numConfetti = 100;
+      const numHearts = 30;
+      const numFlowers = 25;
+      const numTeddies = 15;
+
+      const x = canvas.width / 2; // X-coordinate (center of the canvas)
+      const y = canvas.height * 0.95; // Y-coordinate (near the bottom of the canvas)
+
+      // Launch Confetti particles
+      for (let i = 0; i < numConfetti; i++) {
+        // Generate a random angle for particle velocity, mostly upwards
+        const angle = Math.random() * Math.PI * 0.8 - (Math.PI * 0.4); // Between -72 and 72 degrees from vertical
+        const speed = Math.random() * 12 + 6; // Random speed for particle (6 to 18)
+
+        // Calculate velocity components based on angle and speed
+        const velocity = {
+          x: Math.cos(angle) * speed * (Math.random() > 0.5 ? 1 : -1), // Random direction (left/right) for x
+          y: Math.sin(angle) * speed * -1 // Always upward for y
+        };
+        particles.current.push(
+          new AnimatedParticle(x, y, Math.random() * 3 + 2, getRandomConfettiColor(), velocity, 'confetti')
+        );
+      }
+
+      // Launch Heart emoji particles
+      for (let i = 0; i < numHearts; i++) {
+        const angle = Math.random() * Math.PI * 0.6 - (Math.PI * 0.3); // More upwards
+        const speed = Math.random() * 8 + 4; // Slower speed for hearts
+        const velocity = {
+          x: Math.cos(angle) * speed * (Math.random() > 0.5 ? 0.5 : -0.5), // gentler horizontal spread
+          y: Math.sin(angle) * speed * -1
+        };
+        particles.current.push(
+          // Slightly offset initial position for better spread
+          new AnimatedParticle(x + (Math.random() - 0.5) * 50, y + (Math.random() - 0.5) * 20, Math.random() * 20 + 25, null, velocity, 'emoji', '❤️')
+        );
+      }
+
+      // Launch Flower emoji particles
+      for (let i = 0; i < numFlowers; i++) {
+        const angle = Math.random() * Math.PI * 0.6 - (Math.PI * 0.3);
+        const speed = Math.random() * 7 + 3;
+        const velocity = {
+          x: Math.cos(angle) * speed * (Math.random() > 0.5 ? 0.4 : -0.4),
+          y: Math.sin(angle) * speed * -1
+        };
+        particles.current.push(
+          new AnimatedParticle(x + (Math.random() - 0.5) * 60, y + (Math.random() - 0.5) * 30, Math.random() * 20 + 20, null, velocity, 'emoji', '🌸')
+        );
+      }
+
+      // Launch Teddy bear emoji particles
+      for (let i = 0; i < numTeddies; i++) {
+        const angle = Math.random() * Math.PI * 0.5 - (Math.PI * 0.25); // Slightly wider spread
+        const speed = Math.random() * 6 + 2; // Even slower speed for teddies
+        const velocity = {
+          x: Math.cos(angle) * speed * (Math.random() > 0.5 ? 0.3 : -0.3),
+          y: Math.sin(angle) * speed * -1
+        };
+        particles.current.push(
+          new AnimatedParticle(x + (Math.random() - 0.5) * 70, y + (Math.random() - 0.5) * 40, Math.random() * 25 + 30, null, velocity, 'emoji', '🐻')
+        );
+      }
+    };
+
+    // Animation loop for all particles
+    const animateParticles = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the entire canvas for the next frame
+
+      // Filter out particles that have faded away and update/draw the remaining ones
+      particles.current = particles.current.filter(particle => {
+        particle.update(); // Update particle's state (position, alpha, rotation)
+        particle.draw(ctx); // Draw the particle on the canvas
+        return particle.alpha > 0.05; // Keep particles that are still significantly visible
+      });
+
+      requestAnimationFrame(animateParticles); // Request the next animation frame, creating a loop
+    };
+
+    launchParticles(); // Trigger particle launch when the component mounts
+    animateParticles(); // Start the animation loop
+
+    // Cleanup function: This runs when the component unmounts
+    return () => {
+      window.removeEventListener('resize', resizeCanvas); // Remove the resize event listener to prevent memory leaks
+    };
+  }, []); // Empty dependency array ensures this effect runs only once after the initial render
+
+  return (
+    // Main container for the entire page, ensuring full screen height and a gradient background
+    <div className="min-h-screen bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 flex items-center justify-center font-['Inter'] relative overflow-hidden p-4 sm:p-6 md:p-8">
+      {/* Canvas for particles, positioned absolutely to cover the entire background */}
+      <canvas ref={canvasRef} className="absolute inset-0 z-0"></canvas>
+
+      {/* Content card, positioned above the particle layer, centered on the screen */}
+      <div className="relative z-10 bg-white bg-opacity-90 backdrop-filter backdrop-blur-sm p-8 md:p-10 lg:p-12 rounded-3xl shadow-xl max-w-lg w-full text-center border-4 border-opacity-60 border-pink-300 transform transition-all duration-300 hover:scale-105">
+        {/* Main birthday heading with a bounce animation */}
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-purple-700 mb-4 animate-bounce">
+          Happy Birthday, Vathsaly!
+        </h1>
+        {/* Personal message */}
+        <p className="text-lg sm:text-xl text-gray-800 mb-6 leading-relaxed">
+          To the incredible woman who dedicates her days to healing and learning,
+          <br className="hidden sm:inline" />
+          may your special day be filled with as much joy and brightness as you bring to the world.
+        </p>
+        {/* Message acknowledging her MBBS studies */}
+        <p className="text-md sm:text-lg text-gray-700 mb-8 italic">
+          Your hard work in MBBS is truly inspiring. We're all so proud of the amazing doctor you are becoming!
+          May this year bring you closer to all your dreams.
+        </p>
+        {/* Sender's signature with a heart emoji */}
+        <div className="text-right text-purple-600 font-semibold text-lg sm:text-xl mt-8">
+          With all my love,
+          <br />
+          Teja ❤️
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default App;
